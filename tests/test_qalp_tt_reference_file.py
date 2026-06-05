@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 
-from sim.qecc.qalp import Polynomial, TT_Code, Term
+from macroscheduler.qecc.qalp import Polynomial, TT_Code, Term
 
 
 def _row_counter(mat: np.ndarray) -> Counter:

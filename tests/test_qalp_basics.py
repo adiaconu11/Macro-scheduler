@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from sim.qecc.qalp import Block, Perm, Polynomial, Term, compute_basis
+from macroscheduler.qecc.qalp import Block, Perm, Polynomial, Term, compute_basis
 
 
 class TestPerm:

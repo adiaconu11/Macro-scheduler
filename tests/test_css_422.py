@@ -8,7 +8,7 @@ import numpy as np
 import os
 import tempfile
 
-from sim.qecc.css import CSS_Code
+from macroscheduler.qecc.css import CSS_Code
 
 # ---------------------------------------------------------------------------
 # [[4,2,2]] code parameters

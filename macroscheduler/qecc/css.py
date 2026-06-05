@@ -338,110 +338,6 @@ class CSS_Code:
             if min_stage < 0 or max_stage >= self.depth:
                 raise ValueError(f"s_z_check[{i}] has invalid stages with min {min_stage} and max {max_stage} with depth {self.depth}")
 
-    def check_non_interleaved(self) -> bool:
-        x_check_max = z_check_max = 0
-        x_check_min = z_check_min = self.depth
-        for order in self.s_x_check:
-            x_check_max = max(x_check_max, max(order))
-            x_check_min = min(x_check_min, min(order))
-        for order in self.s_z_check:
-            z_check_max = max(z_check_max, max(order))
-            z_check_min = min(z_check_min, min(order))
-        
-        return x_check_max < z_check_min or z_check_max < x_check_min
-
-    def halfway_check_dist(self, target_dist: int):
-        assert self.check_non_interleaved()
-
-        def _propagate_error(step: int, x_errors: int,  z_errors: int) -> Tuple[int, int]:
-            """
-            Propagate a set of errors inside the circuit.
-
-            Args:
-                step (int): Time step where the error occurred. This coincides
-                    with schedule time.
-                x_errors (int): Bitmask for X errors.
-                z_errors (int): Bitmask for Z errors.
-
-            Returns:
-                tuple[int, int]: `(signature, commutation)` bitmasks.
-
-            Note:
-                In both error bitmasks, bits are ordered as
-                `data_qubits`, `x_checks`, `z_checks`.
-            """
-            pass
-        
-        n_possible_erros = 0
-        saved_sigs:List[int] = []
-        saved_comms:List[int] = []
-        comms_size = len(self.x_logicals) + len(self.z_logicals)
-
-        # errors on Z checks
-        for i, check in enumerate(self.z_checks):
-            for j, qubit in enumerate(check):
-                # X error:
-                sig, comm = _propagate_error(
-                    self.s_z_check[i][j],
-                    _flip_z_check(0, i),
-                    0
-                )
-                saved_sigs.append(sig)
-                saved_comms.append(comm)
-                n_possible_erros += 1
-                # Z error:
-                sig, comm = _propagate_error(
-                    self.s_z_check[i][j],
-                    0,
-                    _flip_z_check(0, i)
-                )
-                saved_sigs.append(sig)
-                saved_comms.append(comm)
-                n_possible_erros += 1
-
-        # errors on X checks
-        for i, check in enumerate(self.x_checks):
-            for j, qubit in enumerate(check):
-                # X error:
-                sig, comm = _propagate_error(
-                    self.s_x_check[i][j],
-                    _flip_x_check(0, i),
-                    0
-                )
-                saved_sigs.append(sig)
-                saved_comms.append(comm)
-                n_possible_erros += 1
-                # Z error:
-                sig, comm = _propagate_error(
-                    self.s_x_check[i][j],
-                    0,
-                    _flip_x_check(0, i)
-                )
-                saved_sigs.append(sig)
-                saved_comms.append(comm)
-                n_possible_erros += 1
-
-        # Data qubit errors
-        for time in range(self.depth):
-            for qubit in range(self.num_data_q):
-                error_string = _flip_data_qubit(0, qubit)
-                sig, comm = _propagate_error(time, error_string, 0) # X error
-                saved_sigs.append(sig)
-                saved_comms.append(comm)
-                n_possible_erros += 1
-                sig, comm = _propagate_error(time, 0, error_string) # Z error
-                saved_sigs.append(sig)
-                saved_comms.append(comm)
-                n_possible_erros += 1
-                sig, comm = _propagate_error(time, error_string, error_string) # Z error
-                saved_sigs.append(sig)
-                saved_comms.append(comm)
-                n_possible_erros += 1
-    
-        hash_map = {}
-        n_configs = 0
-        
-
     def _check_consistent_ordering(self) -> None:
         """
         Check that X-checks and Z-checks are consistently ordered.
@@ -592,6 +488,11 @@ class CSS_Code:
         self.x_logicals = lx.tolist()
 
     def schedule_coloring_separate(self) -> int:
+        """
+        Create a non-interleaved coloration SE circuit.
+        The resulting circuit is minimum depth for a non-interleaved circuit.
+        This function is agnostic to the structure (or lack thereof) of the CSS code.
+        """
         self.schedule = [-1 for _ in self.edges]
 
         xgraph_neighbor = [[] for _ in range(self.num_data_q)]

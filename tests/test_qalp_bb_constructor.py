@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 
-from sim.qecc.qalp import BB_Code, Polynomial, Term
+from macroscheduler.qecc.qalp import BB_Code, Polynomial, Term
 
 
 def _poly_from_xy_powers(x_pows, y_pows) -> Polynomial:

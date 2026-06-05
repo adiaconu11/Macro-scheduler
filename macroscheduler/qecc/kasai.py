@@ -336,9 +336,9 @@ class Kasai_Code(CSS_Code):
         print(self.depth)
         self.validate_se_schedule()
 
-# with open("sim/qecc/kasai_hx.npy", "rb") as f:
+# with open("macroscheduler/qecc/kasai_hx.npy", "rb") as f:
 #     Hx = np.load(f, allow_pickle=True)
-# with open("sim/qecc/kasai_hz.npy", "rb") as f:
+# with open("macroscheduler/qecc/kasai_hz.npy", "rb") as f:
 #     Hz = np.load(f, allow_pickle=True)
 
 if __name__ == "__main__":

@@ -79,6 +79,12 @@ class Perm:
             raise ValueError("Permutations must have the same size to compose")
         return Perm(self.p[other.p], validate=False)
 
+    def inverse(self) -> "Perm":
+        """Return the inverse permutation."""
+        inv = np.empty_like(self.p)
+        inv[self.p] = np.arange(self.n, dtype=np.int32)
+        return Perm(inv, validate=False)
+
     def __mul__(self, other: "Perm") -> "Perm":
         return self.comp(other)
 
@@ -163,36 +169,127 @@ class LiftedMatrix:
         """Returns the shape of the full matrix as a tuple (num_rows, num_cols)."""
         return (self.m * self.l, self.n * self.l)
 
-def I(n: int) -> np.ndarray:
-    return np.eye(n)
+    def dagger(self) -> "LiftedMatrix":
+        """Return the lifted adjoint: protograph transpose and inverse blocks."""
+        blocks = [[Block([]) for _ in range(self.m)] for _ in range(self.n)]
+        for i in range(self.m):
+            for j in range(self.n):
+                blocks[j][i] = Block([perm.inverse() for perm in self.M_tilde[i][j]])
+        return LiftedMatrix(blocks, self.l, validate=False)
 
 def _Z(r: int, c: int) -> np.ndarray:
     return np.zeros((r, c), dtype=int)
 
-def construct_mats(m_array, n_array, check_mats):
-    dim = len(m_array)
+def lifted_identity(size: int, l: int) -> LiftedMatrix:
+    """Return a lifted identity matrix with identity permutations on the diagonal."""
+    if size < 0:
+        raise ValueError("identity size must be non-negative")
+    identity = Perm.identity(l)
+    blocks = [[Block([]) for _ in range(size)] for _ in range(size)]
+    for i in range(size):
+        blocks[i][i] = Block([identity])
+    return LiftedMatrix(blocks, l, validate=False)
+
+def _flatten_index(indices: Tuple[int, ...], dims: Tuple[int, ...]) -> int:
+    idx = 0
+    for value, dim in zip(indices, dims):
+        idx = idx * dim + value
+    return idx
+
+def _multiply_blocks(blocks: Tuple[Block, ...], l: int) -> List[Perm]:
+    if any(len(block) == 0 for block in blocks):
+        return []
+
+    products = [Perm.identity(l)]
+    for block in blocks:
+        products = [product * perm for product in products for perm in block]
+    return products
+
+def kron_lifted(*factors: LiftedMatrix) -> np.ndarray:
+    """
+    Evaluate a Kronecker product over the shared lifted permutation algebra.
+
+    The protograph tensor factors are flattened in the same order as
+    ``np.kron``. The lift coordinate is kept as the innermost coordinate and is
+    expanded only after multiplying the permutation entries in each block.
+    """
+    if not factors:
+        raise ValueError("at least one lifted factor is required")
+
+    l = factors[0].l
+    if not all(factor.l == l for factor in factors):
+        raise ValueError("all lifted factors must have the same lift size")
+
+    row_dims = tuple(factor.m for factor in factors)
+    col_dims = tuple(factor.n for factor in factors)
+    num_row_sectors = int(np.prod(row_dims, dtype=int))
+    num_col_sectors = int(np.prod(col_dims, dtype=int))
+    mat = np.zeros((num_row_sectors * l, num_col_sectors * l), dtype=int)
+
+    for row_indices in np.ndindex(*row_dims):
+        row_sector = _flatten_index(row_indices, row_dims)
+        row = slice(row_sector * l, (row_sector + 1) * l)
+        for col_indices in np.ndindex(*col_dims):
+            col_sector = _flatten_index(col_indices, col_dims)
+            blocks = tuple(
+                factor.M_tilde[row_idx][col_idx]
+                for factor, row_idx, col_idx in zip(factors, row_indices, col_indices)
+            )
+            products = _multiply_blocks(blocks, l)
+            if not products:
+                continue
+
+            col = slice(col_sector * l, (col_sector + 1) * l)
+            for perm in products:
+                mat[row, col] += perm.to_matrix()
+
+    return mat
+
+def construct_lifted_product_mats(lifted_check_mats: List[LiftedMatrix]) -> Tuple[np.ndarray, np.ndarray]:
+    """Construct QALP check matrices by taking Kronecker products over the lift."""
+    dim = len(lifted_check_mats)
+    if dim < 2:
+        raise ValueError("at least two lifted check matrices are required")
+
+    l = lifted_check_mats[0].l
+    if not all(mat.l == l for mat in lifted_check_mats):
+        raise ValueError("all lifted check matrices must have the same lift size")
+
+    m_array = [mat.m for mat in lifted_check_mats]
+    n_array = [mat.n for mat in lifted_check_mats]
+
     match dim:
-        case 2: #2D
+        case 2:
             nA, nB = n_array
             mA, mB = m_array
-            A, B = check_mats
-            Hx = np.hstack((np.kron(A, I(nB)), np.kron(I(mA), B)))
-            Hz = np.hstack((np.kron(I(nA), B.T), np.kron(A.T, I(mB))))
+            A, B = lifted_check_mats
+            Hx = np.hstack((
+                kron_lifted(A, lifted_identity(nB, l)),
+                kron_lifted(lifted_identity(mA, l), B.dagger()),
+            ))
+            Hz = np.hstack((
+                kron_lifted(lifted_identity(nA, l), B),
+                kron_lifted(A.dagger(), lifted_identity(mB, l)),
+            ))
             return Hx, Hz
-        case 3: #3D
-            def kron3(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray:
-                return np.kron(np.kron(a, b), c)
+
+        case 3:
             nA, nB, nC = n_array
             mA, mB, mC = m_array
-            A, B, C = check_mats
-            Hx = np.hstack((kron3(A, I(mB), I(mC)), kron3(I(mA), B, I(mC)), kron3(I(mA), I(mB), C)))
+            A, B, C = lifted_check_mats
 
-            z11 = kron3(I(nA), B.T, I(mC))
-            z12 = kron3(A.T, I(nB), I(mC))
-            z21 = kron3(I(nA), I(mB), C.T)
-            z23 = kron3(A.T, I(mB), I(nC))
-            z32 = kron3(I(mA), I(nB), C.T)
-            z33 = kron3(I(mA), B.T, I(nC))
+            Hx = np.hstack((
+                kron_lifted(A, lifted_identity(mB, l), lifted_identity(mC, l)),
+                kron_lifted(lifted_identity(mA, l), B, lifted_identity(mC, l)),
+                kron_lifted(lifted_identity(mA, l), lifted_identity(mB, l), C),
+            ))
+
+            z11 = kron_lifted(lifted_identity(nA, l), B.dagger(), lifted_identity(mC, l))
+            z12 = kron_lifted(A.dagger(), lifted_identity(nB, l), lifted_identity(mC, l))
+            z21 = kron_lifted(lifted_identity(nA, l), lifted_identity(mB, l), C.dagger())
+            z23 = kron_lifted(A.dagger(), lifted_identity(mB, l), lifted_identity(nC, l))
+            z32 = kron_lifted(lifted_identity(mA, l), lifted_identity(nB, l), C.dagger())
+            z33 = kron_lifted(lifted_identity(mA, l), B.dagger(), lifted_identity(nC, l))
 
             r1, r2, r3 = z11.shape[0], z21.shape[0], z32.shape[0]
             c1, c2, c3 = z11.shape[1], z12.shape[1], z21.shape[1]
@@ -200,9 +297,10 @@ def construct_mats(m_array, n_array, check_mats):
             Hz = np.block([
                 [z11, z12, _Z(r1, c3)],
                 [z21, _Z(r2, c2), z23],
-                [_Z(r3, c1), z32, z33]
+                [_Z(r3, c1), z32, z33],
             ])
             return Hx, Hz
+
         case _:
             raise NotImplementedError("Only up to 3D codes are currently supported!")
 
@@ -228,7 +326,7 @@ class QALP(CSS_Code):
         if not all(mat.l == self.l for mat in self.lifted_check_mats):
             raise ValueError("All lifted check matrices must have the same lift size!")
 
-        Hx, Hz = construct_mats(self.m_array, self.n_array, self.check_mats)
+        Hx, Hz = construct_lifted_product_mats(self.lifted_check_mats)
 
         super().__init__(Hx=Hx, Hz=Hz)
 
@@ -246,6 +344,30 @@ class QALP(CSS_Code):
                                         if not p1.commutes_with(p2):
                                             raise ValueError(f"Permutations at {x}{i}{j} and {y}{k}{l} don't commute!")
 
+class HGP(QALP):
+    """
+    This the class of HGP codes.
+    These codes have trivial lift sizes, but complicated protographs.
+    """
+    def __init__(self, classical_check_mats: List[List[List[int]]], validate=True):
+        """
+        Construct an HGP code from classical parity check matrices.
+        Each parity matrix is a binary m by n matrix: m checks, n data bits
+        """
+        lifted_mats = []
+        for check_mat in classical_check_mats:
+            m = len(check_mat)
+            n = len(check_mat[0])
+            for row in check_mat:
+                assert len(row) == n, "Invalid classical check matrix!"
+            blocks = [[[] for _ in range(n)] for _ in range(m)]
+            for i in range(m):
+                for j in range(n):
+                    if check_mat[i][j] == 1:
+                        blocks[i][j].append(Perm.identity(1))
+            
+            lifted_mats.append(LiftedMatrix(blocks, 1, validate=validate))
+        super().__init__(lifted_mats, validate=validate)
 
 
 class BlockCode(QALP):
@@ -255,7 +377,10 @@ class BlockCode(QALP):
     """
 
     def __init__(self, blocks: List[Block], validate=True):
-        super().__init__([b.as_lifted_mat() for b in blocks], validate)
+        super().__init__(
+            [b.as_lifted_mat() for b in blocks],
+            validate=validate,
+        )
     
 
 def compute_basis(moduli: List[int]) -> List[Perm]:
@@ -296,6 +421,10 @@ class Term(list[int]):
         
         return ans
 
+    def reversed(self, moduli) -> Term:
+        "Find the reversed term given moduli"
+        return Term([moduli[i] - self[i] for i in range(len(self))])
+
 
 class Polynomial(list[Term]):
     """
@@ -310,6 +439,9 @@ class Polynomial(list[Term]):
     def compute_block(self, moduli, monomial_bases: Optional[List[Perm]]) -> Block:
         return Block([t.get_perm(moduli, monomial_bases) for t in self])
     
+    def reversed(self, moduli) -> Polynomial:
+        """Find the reversed polynomial given moduli"""
+        return Polynomial([term.reversed(moduli) for term in self])
     
 
 class AlgebraicBlockCode(BlockCode):
@@ -341,6 +473,14 @@ class BB_Code(AlgebraicBlockCode):
     """
     def __init__(self, l: int, m: int, A_poly: Polynomial | List[List[int]], B_poly: Polynomial | List[List[int]], validate=True):
         moduli = [l, m]
+        if isinstance(A_poly, (list, tuple)):
+            A_poly = Polynomial([Term(term) for term in A_poly])
+        if isinstance(B_poly, (list, tuple)):
+            B_poly = Polynomial([Term(term) for term in B_poly])
+
+        # To match ABC definition, we need to have B --> B.T
+        B_poly = B_poly.reversed([l, m])
+
         polys = [A_poly, B_poly]
         super().__init__(moduli, polys, validate)
 

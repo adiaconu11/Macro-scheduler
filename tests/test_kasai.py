@@ -1,4 +1,4 @@
-from sim.qecc.kasai import KasaiCode, Kasai_Code, all_schedules
+from macroscheduler.qecc.kasai import KasaiCode, Kasai_Code, all_schedules
 import numpy as np
 
 tmp = Kasai_Code(
@@ -11,7 +11,7 @@ tmp = Kasai_Code(
     # Hz=Hz
 )
 
-andrei = KasaiCode(
+code = KasaiCode(
     L=12,
     J=3,
     P=768,
@@ -20,8 +20,8 @@ andrei = KasaiCode(
 )
 
 MAX_SCHEDULES = 5
-scheds = all_schedules(andrei, max_schedules=MAX_SCHEDULES)
+scheds = all_schedules(code, max_schedules=MAX_SCHEDULES)
 print(f"Found {len(scheds)} valid schedules.")
 
-assert np.array_equal(tmp.Hx, andrei.Hx), "Hx does not match"
-assert np.array_equal(tmp.Hz, andrei.Hz), "Hz does not match"
+assert np.array_equal(tmp.Hx, code.Hx), "Hx does not match"
+assert np.array_equal(tmp.Hz, code.Hz), "Hz does not match"
