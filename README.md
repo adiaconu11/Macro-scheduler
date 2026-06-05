@@ -41,4 +41,5 @@ numpages = {7}
   - `test_qalp_basics.py`, `test_qalp_bb_constructor.py`, `test_qalp_tt_reference_file.py`: QALP-focused tests.
   - `test_kasai.py`, `test_css_422.py`: Additional scheduler/code tests.
   - `bb_code_72_12_6.json`, `TT_Code_unit_reference.npy`: Reference data files used by tests for BB and TT codes.
+-  `verify_kasai_schedules_parallel.py`: Artifact for checking the Kasai schedules from the presentation
 - `env.yml`: Conda environment specification.
