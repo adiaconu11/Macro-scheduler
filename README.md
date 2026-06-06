@@ -11,7 +11,9 @@ Details of the method can be found in the manuscript `dac.pdf`. _Quantum Compute
 
 ## Citing
 
-Cite this work via:
+This work is accepted by the 2026 [DAC conference](https://dac.com). (Submitted Nov 19, 2025; accepted Feb 23, 2026; published TBA) 
+
+BibTex entry:
 ```
 @inproceedings{tan26syndrome,
 author = {Tan, Daniel Bochen and Bonilla Ataides, J. Pablo and Menon, Varun and Koh, Jin Ming and Diaconu, Andrei C. and Lukin, Mikhail D.},
