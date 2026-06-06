@@ -7,7 +7,7 @@ This package creates syndrome extraction circuits for a wide class of CSS codes.
 Look at `quickstart.ipynb` for an introduction to the package. Follow the instructions in `env.yml` to create the python environment to run this project.
 The artifacts for the example codes from the manuscript and presentation are available under `example_codes.ipynb`.
 
-Details of the method can be found in the manuscript `dac.pdf`.
+Details of the method can be found in the manuscript `dac.pdf`. _Quantum Computer Systems Lecture 75_ features this work and is available on [YouTube](https://youtu.be/ypFTU95s3Kw?si=8IFg_aw3lyl_Mfu0).
 
 ## Citing
 
