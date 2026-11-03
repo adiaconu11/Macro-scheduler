@@ -7,27 +7,28 @@ This package creates syndrome extraction circuits for a wide class of CSS codes.
 Look at `quickstart.ipynb` for an introduction to the package. Follow the instructions in `env.yml` to create the python environment to run this project.
 The artifacts for the example codes from the manuscript and presentation are available under `example_codes.ipynb`.
 
-Details of the method can be found in the manuscript `dac.pdf`. _Quantum Computer Systems Lecture 75_ features this work and is available on [YouTube](https://youtu.be/ypFTU95s3Kw?si=8IFg_aw3lyl_Mfu0).
+_Quantum Computer Systems Lecture 75_ features this work and is available on [YouTube](https://youtu.be/ypFTU95s3Kw?si=8IFg_aw3lyl_Mfu0).
 
 ## Citing
 
-This work is accepted by the 2026 [DAC conference](https://dac.com). (Submitted Nov 19, 2025; accepted Feb 23, 2026; published TBA) 
-
-BibTex entry:
+This work is based on [a paper](https://doi.org/10.1145/3770743.3803913) appeared in the 2026 DAC conference. (Submitted Nov 19, 2025; accepted Feb 23, 2026; published Oct 22, 2026.) The BibTex entry of the paper is as follows.
 ```
 @inproceedings{tan26syndrome,
 author = {Tan, Daniel Bochen and Bonilla Ataides, J. Pablo and Menon, Varun and Koh, Jin Ming and Diaconu, Andrei C. and Lukin, Mikhail D.},
 title = {Syndrome Extraction Circuits with Near-Optimal Depths for Practical Quantum Error Correcting Code Families},
 year = {2026},
+isbn = {9798400722547},
 publisher = {Association for Computing Machinery},
 address = {New York, NY, USA},
 doi = {10.1145/3770743.3803913},
 booktitle = {Proceedings of the 63rd ACM/IEEE Design Automation Conference},
+articleno = {298},
+numpages = {7},
 location = {Long Beach, CA, USA},
-series = {DAC '26},
-numpages = {7}
+series = {DAC '26}
 }
 ```
+
 
 ## Code Structure
 
