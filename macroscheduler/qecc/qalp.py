@@ -294,15 +294,72 @@ def construct_lifted_product_mats(lifted_check_mats: List[LiftedMatrix]) -> Tupl
             r1, r2, r3 = z11.shape[0], z21.shape[0], z32.shape[0]
             c1, c2, c3 = z11.shape[1], z12.shape[1], z21.shape[1]
 
+            # Z-check block-rows ordered to the canonical convention
+            # H_Z = [[C,0,A],[0,C,B],[B,A,0]] (old rows [1,2,0]).
             Hz = np.block([
-                [z11, z12, _Z(r1, c3)],
                 [z21, _Z(r2, c2), z23],
                 [_Z(r3, c1), z32, z33],
+                [z11, z12, _Z(r1, c3)],
+            ])
+            return Hx, Hz
+
+        case 4:
+            nA, nB, nC, nD = n_array
+            mA, mB, mC, mD = m_array
+            A, B, C, D = lifted_check_mats
+
+            h11 = kron_lifted(lifted_identity(mA, l), lifted_identity(nB, l), C, lifted_identity(nD, l))
+            h13 = kron_lifted(lifted_identity(mA, l), B, lifted_identity(nC, l), lifted_identity(nD, l))
+            h14 = kron_lifted(lifted_identity(mA, l), lifted_identity(nB, l), lifted_identity(nC, l), D)
+            h22 = kron_lifted(lifted_identity(nA, l), lifted_identity(mB, l), C, lifted_identity(nD, l))
+            h23 = kron_lifted(A, lifted_identity(mB, l), lifted_identity(nC, l), lifted_identity(nD, l))
+            h25 = kron_lifted(lifted_identity(nA, l), lifted_identity(mB, l), lifted_identity(nC, l), D)
+            h31 = kron_lifted(A, lifted_identity(nB, l), lifted_identity(mC, l), lifted_identity(nD, l))
+            h32 = kron_lifted(lifted_identity(nA, l), B, lifted_identity(mC, l), lifted_identity(nD, l))
+            h36 = kron_lifted(lifted_identity(nA, l), lifted_identity(nB, l), lifted_identity(mC, l), D)
+            h44 = kron_lifted(A, lifted_identity(nB, l), lifted_identity(nC, l), lifted_identity(mD, l))
+            h45 = kron_lifted(lifted_identity(nA, l), B, lifted_identity(nC, l), lifted_identity(mD, l))
+            h46 = kron_lifted(lifted_identity(nA, l), lifted_identity(nB, l), C, lifted_identity(mD, l))
+
+            r1, r2, r3, r4 = h11.shape[0], h22.shape[0], h31.shape[0], h44.shape[0]
+            c1, c2, c3, c4, c5, c6 = h11.shape[1], h22.shape[1], h13.shape[1], h14.shape[1], h25.shape[1], h36.shape[1]
+
+            Hx = np.block([
+                [h11, _Z(r1, c2), h13, h14, _Z(r1, c5), _Z(r1, c6)],
+                [_Z(r2, c1), h22, h23, _Z(r2, c4), h25, _Z(r2, c6)],
+                [h31, h32, _Z(r3, c3), _Z(r3, c4), _Z(r3, c5), h36],
+                [_Z(r4, c1), _Z(r4, c2), _Z(r4, c3), h44, h45, h46],
+            ])
+
+            z11 = kron_lifted(lifted_identity(mA, l), B.dagger(), lifted_identity(mC, l), lifted_identity(nD, l))
+            z12 = kron_lifted(A.dagger(), lifted_identity(mB, l), lifted_identity(mC, l), lifted_identity(nD, l))
+            z13 = kron_lifted(lifted_identity(mA, l), lifted_identity(mB, l), C.dagger(), lifted_identity(nD, l))
+            z21 = kron_lifted(lifted_identity(mA, l), lifted_identity(nB, l), lifted_identity(mC, l), D.dagger())
+            z24 = kron_lifted(lifted_identity(mA, l), lifted_identity(nB, l), C.dagger(), lifted_identity(mD, l))
+            z26 = kron_lifted(A.dagger(), lifted_identity(nB, l), lifted_identity(mC, l), lifted_identity(mD, l))
+            z32 = kron_lifted(lifted_identity(nA, l), lifted_identity(mB, l), lifted_identity(mC, l), D.dagger())
+            z35 = kron_lifted(lifted_identity(nA, l), lifted_identity(mB, l), C.dagger(), lifted_identity(mD, l))
+            z36 = kron_lifted(lifted_identity(nA, l), B.dagger(), lifted_identity(mC, l), lifted_identity(mD, l))
+            z43 = kron_lifted(lifted_identity(mA, l), lifted_identity(mB, l), lifted_identity(nC, l), D.dagger())
+            z44 = kron_lifted(lifted_identity(mA, l), B.dagger(), lifted_identity(nC, l), lifted_identity(mD, l))
+            z45 = kron_lifted(A.dagger(), lifted_identity(mB, l), lifted_identity(nC, l), lifted_identity(mD, l))
+
+            zr1, zr2, zr3, zr4 = z11.shape[0], z21.shape[0], z32.shape[0], z43.shape[0]
+            zc1, zc2, zc3, zc4, zc5, zc6 = z11.shape[1], z12.shape[1], z13.shape[1], z24.shape[1], z35.shape[1], z26.shape[1]
+
+            # Z-check block-rows ordered to the canonical convention
+            # H_Z rows = [B,A,C,0,0,0]/[D,0,0,C,0,A]/[0,D,0,0,C,B]/[0,0,D,B,A,0]
+            # (old rows [3,1,0,2]).
+            Hz = np.block([
+                [z11, z12, z13, _Z(zr1, zc4), _Z(zr1, zc5), _Z(zr1, zc6)],
+                [z21, _Z(zr2, zc2), _Z(zr2, zc3), z24, _Z(zr2, zc5), z26],
+                [_Z(zr3, zc1), z32, _Z(zr3, zc3), _Z(zr3, zc4), z35, z36],
+                [_Z(zr4, zc1), _Z(zr4, zc2), z43, z44, z45, _Z(zr4, zc6)],
             ])
             return Hx, Hz
 
         case _:
-            raise NotImplementedError("Only up to 3D codes are currently supported!")
+            raise NotImplementedError("Only up to 4D codes are currently supported!")
 
 class QALP(CSS_Code):
     """
